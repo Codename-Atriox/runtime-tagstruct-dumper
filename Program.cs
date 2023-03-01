@@ -27,7 +27,7 @@ namespace TagStructDumper{
             args = new string[] 
             { "C:\\Users\\Joe bingle\\Downloads\\plugins",
               "6.10023.16112.0",
-              "1971780059136"
+              "2797304348672"
             };
 
 
@@ -182,10 +182,13 @@ namespace TagStructDumper{
         private int tagCount = 0;
         private string outDIR = @".\Plugins";
 
+        private List<string> param_types_list = new List<string>();
+
         public bool DumpStructs(string game_version)
         {
             try
             {
+                Dictionary<string, string> tag_group_guid_associations = new Dictionary<string, string>();
                 ClearPlugins();
 
                 for (int iteration_index = 0; iteration_index < tagCount; iteration_index++)
@@ -195,7 +198,8 @@ namespace TagStructDumper{
                     string group_name = M.ReadString((current_tag_struct_Address + 12).ToString("X"), "", 4);
 
                     // we now apply the file name before creating it, so no more temp files
-                    string outpath = outDIR + @"\" + ReverseString(group_name).Replace("*", "_");
+                    string tag_group = ReverseString(group_name).Replace("*", "_");
+                    string outpath = outDIR + @"\" + tag_group;
                     // "cmpS" has a similar tag that has the same chars but different capitialization
                     if (File.Exists(outpath + ".xml"))
                         outpath += "NAME_SIMILAR.xml";
@@ -240,7 +244,9 @@ namespace TagStructDumper{
                         // this code will convert gdls to the next tagstruct
                         long gdls_address = M.ReadLong((current_tag_struct_Address + 0x20).ToString("X"));
                         long tagstruct_address = M.ReadLong((gdls_address + 0x18).ToString("X"));
-                        structs_to_append.Add(read_guid_from_tagstruct(tagstruct_address), tagstruct_address);
+                        string root_GUID = read_guid_from_tagstruct(tagstruct_address);
+                        tag_group_guid_associations.Add(tag_group, root_GUID);
+                        structs_to_append.Add(root_GUID, tagstruct_address);
 
                         // loop to write each struct definition
                         // NOTE: this has to point to a 'tagdata_struct_def', refer to the tagstruct mappings file
@@ -289,7 +295,17 @@ namespace TagStructDumper{
                                     textWriter.WriteAttributeString("Name", DELETEME_name);
                                     // write the signature if it has one
                                     string param_signature = M.ReadString((current_param_address + 0x0C).ToString("X"), "", 4);
-                                    if (!string.IsNullOrWhiteSpace(param_signature)) textWriter.WriteAttributeString("type", ReverseString(param_signature));
+                                    if (!string.IsNullOrWhiteSpace(param_signature))
+                                    {
+                                        string param_type = ReverseString(param_signature);
+                                        // DEBUG // DEBUG // DEBUG //
+                                        // we're using this to compile a list of special param types, so we can have these integrated into the tool
+                                        textWriter.WriteAttributeString("type", param_type);
+                                        if (!param_types_list.Contains(param_type))
+                                        {
+                                            param_types_list.Add(param_type);
+                                        }
+                                    }
                                     // write the offset, then add this to the offset size tracker
                                     textWriter.WriteAttributeString("Offset", struct_offset.ToString("X"));
                                     // lets first get the address of the extra data address
@@ -375,8 +391,8 @@ namespace TagStructDumper{
                                             if (param_data_address > 0)
                                             {
                                                 textWriter.WriteAttributeString("Float1", M.ReadFloat((param_data_address + 0x0).ToString("X")).ToString());
-                                                textWriter.WriteAttributeString("Min", M.ReadFloat((param_data_address + 0x4).ToString("X")).ToString());
-                                                textWriter.WriteAttributeString("Max", M.ReadFloat((param_data_address + 0x8).ToString("X")).ToString());
+                                                textWriter.WriteAttributeString("Max", M.ReadFloat((param_data_address + 0x4).ToString("X")).ToString());
+                                                textWriter.WriteAttributeString("Min", M.ReadFloat((param_data_address + 0x8).ToString("X")).ToString());
                                                 textWriter.WriteAttributeString("Float4", M.ReadFloat((param_data_address + 0xC).ToString("X")).ToString());
                                             }
                                             break;
@@ -522,6 +538,18 @@ namespace TagStructDumper{
                         // onto the next tag
                     }
                 }
+                using (StreamWriter writer = File.CreateText(outDIR + "\\GUIDs.txt"))
+                {
+                    foreach (var v in tag_group_guid_associations)
+                        writer.WriteLine(v.Key + ":" + v.Value);
+                }
+                using (StreamWriter writer = File.CreateText(outDIR + "\\TYPEs.txt"))
+                {
+                    foreach (var v in param_types_list)
+                        writer.WriteLine(v);
+                }
+
+
                 return true;
             }
             catch (Exception ex)
@@ -535,8 +563,8 @@ namespace TagStructDumper{
         {
             // we need to read this as two longs, then reverse both of them and add them together
             // although we shoudln't need to read the 
-            string guid = M.ReadLong((tagstruct_address + 0x10).ToString("X")).ToString("X8");
-            guid += M.ReadLong((tagstruct_address + 0x18).ToString("X")).ToString("X8");
+            string guid = M.ReadLong((tagstruct_address + 0x10).ToString("X")).ToString("X16");
+            guid += M.ReadLong((tagstruct_address + 0x18).ToString("X")).ToString("X16");
             return guid;
         }
         // no longer need a second function as we're only reading the actual guid
@@ -560,7 +588,6 @@ namespace TagStructDumper{
                 File.Delete(file);
             }
         }
-        List<int> tested_groups = new List<int>();
 
         int test_struct_size(long struct_ptr)
         {
@@ -629,76 +656,76 @@ namespace TagStructDumper{
         // these should all be correct except for the unknown/unlabelled ones
         public static int[] param_group_sizes = new int[]
         {
-            32,     // _field_string
-            256,    // _field_long_string
-            4,      // _field_string_id
-            4,      // 
-            1,      // _field_char_integer
-            2,      // _field_short_integer
-            4,      // _field_long_integer
-            8,      // _field_int64_integer
-            4,      // _field_angle
-            4,      // _field_tag
-            1,      // _field_char_enum
-            2,      // _field_short_enum
-            4,      // _field_long_enum
-            4,      // _field_long_flags
-            2,      // _field_word_flags
-            1,      // _field_byte_flags
-            4,      // _field_point_2d
-            4,      // _field_rectangle_2d
-            4,      // _field_rgb_color
-            4,      // _field_argb_color 
-            4,      // _field_real
-            4,      // _field_real_fraction
-            8,      // _field_real_point_2d
-            12,     // _field_real_point_3d
-            8,      // _field_real_vector_2d
-            12,     // _field_real_vector_3d
-            16,     // _field_real_quaternion
-            8,      // _field_real_euler_angles_2d
-            12,     // _field_real_euler_angles_3d
-            12,     // _field_real_plane_2d
-            16,     // _field_real_plane_3d
-            12,     // _field_real_rgb_color
-            16,     // _field_real_argb_color
-            4,      // _field_real_hsv_colo
-            4,      // _field_real_ahsv_color
-            4,      // _field_short_bounds
-            8,      // _field_angle_bounds
-            8,      // _field_real_bounds
-            8,      // _field_real_fraction_bounds
-            4,      // 
-            4,      //
-            4,      // _field_long_block_flags
-            4,      // _field_word_block_flags
-            4,      // _field_byte_block_flags
-            1,      // _field_char_block_index
-            1,      // _field_custom_char_block_index
-            2,      // _field_short_block_index
-            2,      // _field_custom_short_block_index
-            4,      // _field_long_block_index
-            4,      // _field_custom_long_block_index
-            4,      // 
-            4,      // 
-            0,      // _field_pad 
-            0,      // _field_skip
-            0,      // _field_explanation
-            0,      // _field_custom
-            0,      // _field_struct 
-            0,      // _field_array
-            4,      // 
-            0,      // end of struct
-            1,      // _field_byte_integer
-            2,      // _field_word_integer
-            4,      // _field_dword_integer
-            8,      // _field_qword_integer
-            20,     // _field_block_v2
-            28,     // _field_reference_v2
-            24,     // _field_data_v2
-            16,     // tag_resource
-            4,      // UNKNOWN
-            4       // UNKNOWN
+            32,  //  _0 // _field_string
+            256, //  _1 // _field_long_string
+            4,   //  _2 // _field_string_id
+            4,   //  _3 // 
+            1,   //  _4 // _field_char_integer
+            2,   //  _5 // _field_short_integer
+            4,   //  _6 // _field_long_integer
+            8,   //  _7 // _field_int64_integer
+            4,   //  _8 // _field_angle
+            4,   //  _9 // _field_tag
+            1,   //  _A // _field_char_enum
+            2,   //  _B // _field_short_enum
+            4,   //  _C // _field_long_enum
+            4,   //  _D // _field_long_flags
+            2,   //  _E // _field_word_flags
+            1,   //  _F // _field_byte_flags
+            4,   // _10 // _field_point_2d
+            4,   // _11 // _field_rectangle_2d
+            4,   // _12 // _field_rgb_color
+            4,   // _13 // _field_argb_color 
+            4,   // _14 // _field_real
+            4,   // _15 // _field_real_fraction
+            8,   // _16 // _field_real_point_2d
+            12,  // _17 // _field_real_point_3d
+            8,   // _18 // _field_real_vector_2d
+            12,  // _19 // _field_real_vector_3d
+            16,  // _1A // _field_real_quaternion
+            8,   // _1B // _field_real_euler_angles_2d
+            12,  // _1C // _field_real_euler_angles_3d
+            12,  // _1D // _field_real_plane_2d
+            16,  // _1E // _field_real_plane_3d
+            12,  // _1F // _field_real_rgb_color
+            16,  // _20 // _field_real_argb_color
+            4,   // _21 // _field_real_hsv_colo
+            4,   // _22 // _field_real_ahsv_color
+            4,   // _23 // _field_short_bounds
+            8,   // _24 // _field_angle_bounds
+            8,   // _25 // _field_real_bounds
+            8,   // _26 // _field_real_fraction_bounds
+            4,   // _27 // 
+            4,   // _28 //
+            4,   // _29 // _field_long_block_flags
+            4,   // _2A // _field_word_block_flags
+            4,   // _2B // _field_byte_block_flags
+            1,   // _2C // _field_char_block_index
+            1,   // _2D // _field_custom_char_block_index
+            2,   // _2E // _field_short_block_index
+            2,   // _2F // _field_custom_short_block_index
+            4,   // _30 // _field_long_block_index
+            4,   // _31 // _field_custom_long_block_index
+            4,   // _32 // 
+            4,   // _33 // 
+            0,   // _34 // _field_pad 
+            0,   // _35 // _field_skip
+            0,   // _36 // _field_explanation
+            0,   // _37 // _field_custom
+            0,   // _38 // _field_struct 
+            0,   // _39 // _field_array
+            4,   // _3A // 
+            0,   // _3B // end of struct
+            1,   // _3C // _field_byte_integer
+            2,   // _3D // _field_word_integer
+            4,   // _3E // _field_dword_integer
+            8,   // _3F // _field_qword_integer
+            20,  // _40 // _field_block_v2
+            28,  // _41 // _field_reference_v2
+            24,  // _42 // _field_data_v2
+            16,  // _43 // tag_resource
+            4,   // _44 // UNKNOWN
+            4    // _45 // UNKNOWN
         };
     }
 }
