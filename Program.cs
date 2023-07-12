@@ -26,8 +26,8 @@ namespace TagStructDumper{
             // EXAMPLE ARGS, and used for testing
             args = new string[] 
             { "C:\\Users\\Joe bingle\\Downloads\\plugins",
-              "6.10023.16112.0",
-              "2797304348672"
+              // "6.10024.15613.0", // this value is now automatically determined
+              "2185886236672" // int64? not hexadecimal
             };
 
 
@@ -35,17 +35,13 @@ namespace TagStructDumper{
                 Console.WriteLine("No path arguement detected");
                 return;
             }
-            if (args.Length == 1){
-                Console.WriteLine("No game version arguement detected");
-                return;
-            }
             // check to make sure that the address is usable
             long start_address = 0;
-            if (args.Length > 2){
-                if (!string.IsNullOrWhiteSpace(args[2])){
-                    try {start_address = Int64.Parse(args[2]);}
+            if (args.Length == 1){
+                if (!string.IsNullOrWhiteSpace(args[1])){
+                    try {start_address = Int64.Parse(args[1]);}
                     catch (FormatException){
-                        Console.WriteLine($"Failed to read address: '{args[2]}'");
+                        Console.WriteLine($"Failed to read address: '{args[1]}'");
                         return;
                     }
                 }
@@ -56,8 +52,7 @@ namespace TagStructDumper{
                 Console.WriteLine("Arguements accepted, running");
                 // if the checks passed, then we probably passed in the correct parameters
                 string destination = args[0];
-                string game_version = args[1];
-                Initializer tag_struct_initer = new Initializer(destination, game_version, start_address);
+                Initializer tag_struct_initer = new Initializer(destination, start_address);
                 if (tag_struct_initer.initialized)
                     Task.Run(() => tag_struct_initer.initTagStructDumper()).Wait();
             }
@@ -73,14 +68,14 @@ namespace TagStructDumper{
     }
 
     public class Initializer{
-        public Initializer(string dest, string vers, long starting_address){
+        public Initializer(string dest, long starting_address){
             plugin_output_directory = dest;
             startAddress = starting_address;
-            current_game_version = vers;
             // now setup the memory.dll
             M = new Mem();
             if (M.OpenProcess("HaloInfinite.exe")){
                 Console.WriteLine("Successfully Hooked to process");
+                current_game_version = M.mProc.MainModule.FileVersionInfo.ProductVersion;
                 initialized = true;
             } 
             else Console.WriteLine("No halo infinite process found");
