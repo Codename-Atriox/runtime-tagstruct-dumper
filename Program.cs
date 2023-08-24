@@ -49,7 +49,7 @@ namespace TagStructDumper{
 
             try
             {
-                Console.WriteLine("Arguements accepted, running");
+                Console.WriteLine("Arguments accepted, running");
                 // if the checks passed, then we probably passed in the correct parameters
                 string destination = args[0];
                 Initializer tag_struct_initer = new Initializer(destination, start_address);
@@ -208,6 +208,9 @@ namespace TagStructDumper{
                         textWriter.WriteStartDocument();
                         textWriter.WriteStartElement("root");
                         textWriter.WriteAttributeString("GameVersion", game_version); // notate version, for testing purposes
+                        // write generation time
+                        textWriter.WriteAttributeString("GenerationDate", DateTime.Today.Date.ToString("dd/MM/yyyy") + " -> " + DateTime.Now.ToString("h:mm:ss tt"));
+
 
                         // write the root name
                         string root_name = "";
