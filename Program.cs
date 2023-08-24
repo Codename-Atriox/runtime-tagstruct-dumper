@@ -209,7 +209,7 @@ namespace TagStructDumper{
                         textWriter.WriteStartElement("root");
                         textWriter.WriteAttributeString("GameVersion", game_version); // notate version, for testing purposes
                         // write generation time
-                        textWriter.WriteAttributeString("GenerationDate", DateTime.Today.Date.ToString("dd/MM/yyyy") + " -> " + DateTime.Now.ToString("h:mm:ss tt"));
+                        textWriter.WriteAttributeString("Timestamp", DateTime.Today.Date.ToString("dd/MM/yyyy") + " -> " + DateTime.Now.ToString("h:mm:ss tt"));
 
 
                         // write the root name
