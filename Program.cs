@@ -27,7 +27,7 @@ namespace TagStructDumper{
             args = new string[] 
             { "C:\\Users\\Joe bingle\\Downloads\\plugins",
               // "6.10024.15613.0", // this value is now automatically determined
-              "2185886236672" // int64? not hexadecimal
+              //"2185886236672" // int64? not hexadecimal
             };
 
 
@@ -37,7 +37,7 @@ namespace TagStructDumper{
             }
             // check to make sure that the address is usable
             long start_address = 0;
-            if (args.Length == 1){
+            if (args.Length == 2){
                 if (!string.IsNullOrWhiteSpace(args[1])){
                     try {start_address = Int64.Parse(args[1]);}
                     catch (FormatException){
@@ -117,20 +117,24 @@ namespace TagStructDumper{
 
             // do Z's thing to count the tags
             int tagCount = 0;
-            int warnings = 0;
+            int expectedID = -1;
             long curAddress = startAddress;
+            // we need to iterate through all possible tagstructs & match their ID thing with the expected ID thing
+            // if it doesn't match that that means we reached the end
             while (true){
-                if (M.ReadInt((curAddress + 80).ToString("X")) == 257){
+                int curr_id = M.ReadInt((curAddress + 40).ToString("X"));
+                if (curr_id == expectedID){
                     tagCount++;
+                    expectedID--; // the next tag will have an ID that is 1 less than the last
                     curAddress += 88;
-                    warnings = 0;
-                } else {
-                    warnings++;
-                    curAddress += 88;
-                }
-                if (warnings > 3) break; // no idea how exactly this works, but works for me
+                }else break; // its virtually inmpossible that the following data will have the exact value hopefully
+                
             }
+
             Console.WriteLine("Found " + tagCount + " tag structs!");
+            if (tagCount < 485)
+                Console.WriteLine("thats less than the (485) expected count, scan potentially failed!");
+
 
             // finally, begin the dump
             TagStructDumper tsd = new TagStructDumper(startAddress, tagCount, M, plugin_output_directory);
