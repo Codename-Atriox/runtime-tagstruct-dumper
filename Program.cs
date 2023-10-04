@@ -270,6 +270,9 @@ namespace TagStructDumper{
                             textWriter.WriteAttributeString("Name", first_name);
                             string second_name = M.ReadString(M.ReadLong((current_base_address + 8).ToString("X")).ToString("X"), "", 300);
                             if (!string.IsNullOrWhiteSpace(second_name) && second_name != first_name) textWriter.WriteAttributeString("Name2", second_name);
+                            // write alt guid
+                            string alt_guid = M.ReadLong((current_base_address + 0x48).ToString("X")).ToString("X");
+                            textWriter.WriteAttributeString("Alt", alt_guid);
 
                             // determine the count of children and then process them all
                             int children_count = M.ReadInt((current_base_address + 0x78).ToString("X"));
